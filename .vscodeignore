@@ -4,6 +4,12 @@ node_modules/
 .vscode/
 out/
 src/
+tests/
+image.png
+image-current.png
+image-status.png
+image-tabs.png
+.local/
 
 ADDING_LANGUAGE.md
 package-lock.json

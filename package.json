@@ -43,6 +43,8 @@
         "compile": "rspack",
         "watch": "rspack --watch",
         "package": "rspack --mode production --devtool hidden-source-map",
+        "typecheck": "tsc --noEmit",
+        "test": "node tests/presence.test.cjs",
         "pretest": "npm run compile"
     },
     "dependencies": {
@@ -56,7 +58,7 @@
         "@rspack/cli": "^2.0.6",
         "@rspack/core": "^2.0.6",
         "@types/node": "~22.15.35",
-        "@types/vscode": "1.52.0",
+        "@types/vscode": "1.93.0",
         "@vscode/vsce": "^3.9.2",
         "npm-run-all": "^4.1.5",
         "prettier": "^3.8.3",
@@ -244,8 +246,54 @@
                     "vscord.status.idle.timeout": {
                         "type": "number",
                         "default": 300,
-                        "description": "Time in seconds before the user is considered idle.",
+                        "minimum": 0,
+                        "description": "Time in seconds after VS Code loses focus before the user is considered idle. Set to 0 to disable automatic idle.",
                         "order": 5
+                    }
+                }
+            },
+            {
+                "title": "Codex",
+                "properties": {
+                    "vscord.status.codex.enabled": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Show Codex presence while an interactive Codex session runs in the focused integrated terminal."
+                    },
+                    "vscord.status.codex.showTerminalTitle": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Share the selected Codex terminal name through {codex_title}. Configure Codex /title to include its session name. Hidden by privacy mode and workspace exclusions."
+                    },
+                    "vscord.status.details.text.codex": {
+                        "type": "string",
+                        "default": "Using Codex in {codex_directory}",
+                        "description": "The details text to show while using Codex. {codex_directory} uses the focused session's terminal working directory."
+                    },
+                    "vscord.status.state.text.codex": {
+                        "type": "string",
+                        "default": "{codex_title}",
+                        "description": "The state text to show while using Codex. {codex_title} is empty unless terminal title sharing is enabled."
+                    },
+                    "vscord.status.image.large.codex.key": {
+                        "type": "string",
+                        "default": "https://raw.githubusercontent.com/riqvip/vscord/codex-terminal-presence/assets/codex.png",
+                        "description": "The large Codex tile. Defaults to a centered OpenAI logo on a light gray background."
+                    },
+                    "vscord.status.image.large.codex.text": {
+                        "type": "string",
+                        "default": "Using Codex",
+                        "description": "The large image hover text to show while using Codex."
+                    },
+                    "vscord.status.image.small.codex.key": {
+                        "type": "string",
+                        "default": "https://raw.githubusercontent.com/LeonardSSH/vscord/main/assets/icons/{app_id}.png",
+                        "description": "The small editor badge to show while using Codex."
+                    },
+                    "vscord.status.image.small.codex.text": {
+                        "type": "string",
+                        "default": "{app_name}",
+                        "description": "The small image hover text to show while using Codex."
                     }
                 }
             },
@@ -1372,7 +1420,7 @@
         }
     },
     "engines": {
-        "vscode": "^1.52.0"
+        "vscode": "^1.93.0"
     },
     "packageManager": "npm@11.16.0"
 }

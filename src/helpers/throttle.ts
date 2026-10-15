@@ -15,7 +15,7 @@ export const throttle = <F extends (...args: any[]) => any>(func: F, delay: numb
 
             const now = new Date().getTime();
             if (now - lastCalled < delay) {
-                if (!runAfterThrottleEnd) return;
+                if (!runAfterThrottleEnd) return undefined;
 
                 if (timeout) clearTimeout(timeout);
 
@@ -24,6 +24,7 @@ export const throttle = <F extends (...args: any[]) => any>(func: F, delay: numb
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
                 return run();
             }
+            return undefined;
         },
         reset: (setLastCalled = false) => {
             if (setLastCalled) lastCalled = new Date().getTime();

@@ -13,7 +13,8 @@ const controller = new RPCController(
 );
 
 export const registerListeners = (ctx: ExtensionContext) => {
-    const onConfigurationChanged = workspace.onDidChangeConfiguration(async () => {
+    const onConfigurationChanged = workspace.onDidChangeConfiguration(async (event) => {
+        if (!event.affectsConfiguration("vscord")) return;
         const config = getConfig();
         const clientId = getApplicationId(config).clientId;
         const isEnabled = config.get(CONFIG_KEYS.Enable);
@@ -27,7 +28,7 @@ export const registerListeners = (ctx: ExtensionContext) => {
             if (isEnabled) await controller.enable();
         }
 
-        controller.manualIdleMode = config.get(CONFIG_KEYS.Status.Idle.Check) === false;
+        controller.refreshConfiguration();
     });
 
     ctx.subscriptions.push(onConfigurationChanged);
@@ -148,7 +149,7 @@ export const registerCommands = (ctx: ExtensionContext) => {
         logInfo("Started Idling");
 
         controller.manualIdling = true;
-        await controller.sendActivity(false, true);
+        await controller.sendActivity();
 
         if (!config.get(CONFIG_KEYS.Behaviour.SuppressNotifications))
             await window.showInformationMessage("Started Idling.");

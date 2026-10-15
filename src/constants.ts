@@ -30,6 +30,7 @@ export const CONFIG_KEYS = {
                 Viewing: "status.details.text.viewing" as const,
                 NotInFile: "status.details.text.notInFile" as const,
                 NoWorkspaceText: "status.details.text.noWorkSpaceText" as const,
+                Codex: "status.details.text.codex" as const,
                 Debugging: "status.details.text.debugging" as const
             } as const
         } as const,
@@ -47,7 +48,8 @@ export const CONFIG_KEYS = {
                 Debugging: "status.state.text.debugging" as const,
                 Viewing: "status.state.text.viewing" as const,
                 NotInFile: "status.state.text.notInFile" as const,
-                NoWorkspaceFound: "status.state.text.noWorkspaceFound" as const
+                NoWorkspaceFound: "status.state.text.noWorkspaceFound" as const,
+                Codex: "status.state.text.codex" as const
             } as const
         } as const,
         Buttons: {
@@ -124,6 +126,10 @@ export const CONFIG_KEYS = {
         } as const,
         Image: {
             Large: {
+                Codex: {
+                    Key: "status.image.large.codex.key" as const,
+                    Text: "status.image.large.codex.text" as const
+                } as const,
                 Idle: {
                     Key: "status.image.large.idle.key" as const,
                     Text: "status.image.large.idle.text" as const
@@ -146,6 +152,10 @@ export const CONFIG_KEYS = {
                 } as const
             } as const,
             Small: {
+                Codex: {
+                    Key: "status.image.small.codex.key" as const,
+                    Text: "status.image.small.codex.text" as const
+                } as const,
                 Idle: {
                     Key: "status.image.small.idle.key" as const,
                     Text: "status.image.small.idle.text" as const
@@ -179,6 +189,10 @@ export const CONFIG_KEYS = {
             DisconnectOnIdle: "status.idle.disconnectOnIdle" as const,
             ResetElapsedTime: "status.idle.resetElapsedTime" as const,
             Timeout: "status.idle.timeout" as const
+        } as const,
+        Codex: {
+            Enabled: "status.codex.enabled" as const,
+            ShowTerminalTitle: "status.codex.showTerminalTitle" as const
         } as const,
         ShowElapsedTime: "status.showElapsedTime" as const,
         ResetElapsedTimePerFile: "status.resetElapsedTimePerFile" as const

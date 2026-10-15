@@ -6,6 +6,7 @@ import { getFileSize } from "./helpers/getFileSize";
 import { isExcluded } from "./helpers/isExcluded";
 import { isObject } from "./helpers/isObject";
 import { getConfig } from "./config";
+import { formatCodexDirectory, type CodexPresence } from "./terminal";
 import { logInfo } from "./logger";
 import { dataClass } from "./data";
 import { sep } from "node:path";
@@ -25,7 +26,8 @@ export enum CURRENT_STATUS {
     NOT_IN_FILE = "notInFile",
     EDITING = "editing",
     DEBUGGING = "debugging",
-    VIEWING = "viewing"
+    VIEWING = "viewing",
+    CODEX = "codex"
 }
 
 export enum PROBLEM_LEVEL {
@@ -82,7 +84,8 @@ export const onDiagnosticsChange = () => {
 export const activity = async (
     previous: SetActivity = {},
     isViewing = false,
-    isIdling = false
+    isIdling = false,
+    codex?: CodexPresence
 ): Promise<SetActivity> => {
     const config = getConfig();
     const presence = previous;
@@ -130,6 +133,9 @@ export const activity = async (
             dataClass.workspaceName !== undefined &&
             isExcluded(config.get(CONFIG_KEYS.Ignore.Workspaces)!, dataClass.workspaceName);
 
+    if (!isWorkspaceExcluded && codex?.cwd)
+        isWorkspaceExcluded = isExcluded(config.get(CONFIG_KEYS.Ignore.Workspaces)!, codex.cwd.fsPath);
+
     const isNotInFile = !isWorkspaceExcluded && !dataClass.editor;
 
     const isDebugging = config.get(CONFIG_KEYS.Status.State.Debugging.Enabled) && !!debug.activeDebugSession;
@@ -137,6 +143,7 @@ export const activity = async (
 
     let status: CURRENT_STATUS;
     if (isIdling) status = CURRENT_STATUS.IDLE;
+    else if (codex) status = CURRENT_STATUS.CODEX;
     else if (isNotInFile) status = CURRENT_STATUS.NOT_IN_FILE;
     else if (isDebugging) status = CURRENT_STATUS.DEBUGGING;
     else if (isViewing) status = CURRENT_STATUS.VIEWING;
@@ -164,7 +171,18 @@ export const activity = async (
             dataClass.editor?.document,
             dataClass.editor?.selection
         );
-        return replaced.replaceAll("{problems}", PROBLEMS);
+        return replaced
+            .replaceAll("{problems}", PROBLEMS)
+            .replaceAll(
+                "{codex_title}",
+                !privacyModeEnabled && !isWorkspaceExcluded ? (codex?.title ?? FAKE_EMPTY) : FAKE_EMPTY
+            )
+            .replaceAll(
+                "{codex_directory}",
+                !privacyModeEnabled && !isWorkspaceExcluded
+                    ? (formatCodexDirectory(codex?.cwd) ?? "current directory")
+                    : "current directory"
+            );
     };
 
     const replaceForPrivacyMode = async (text: string) => {
@@ -182,13 +200,11 @@ export const activity = async (
     };
 
     let workspaceExcludedText = "No workspace ignore text provided.";
-    const ignoreWorkspacesText = config.get(CONFIG_KEYS.Ignore.WorkspacesText)!;
+    const ignoreWorkspacesText = config.get(CONFIG_KEYS.Ignore.WorkspacesText) ?? "";
 
     if (isObject(ignoreWorkspacesText)) {
-        workspaceExcludedText =
-            (dataClass.workspaceFolder
-                ? await replaceAllText(ignoreWorkspacesText[dataClass.workspaceFolder.name])
-                : undefined) ?? workspaceExcludedText;
+        const template = dataClass.workspaceFolder ? ignoreWorkspacesText[dataClass.workspaceFolder.name] : undefined;
+        if (typeof template === "string") workspaceExcludedText = await replaceAllText(template);
     } else {
         const text = await replaceAllText(ignoreWorkspacesText);
         workspaceExcludedText = text !== "" ? text : workspaceExcludedText;
@@ -204,6 +220,17 @@ export const activity = async (
     let smallImageText = undefined;
 
     switch (status) {
+        case CURRENT_STATUS.CODEX: {
+            if (!isWorkspaceExcluded) {
+                if (detailsEnabled) details = await replaceAllText(config.get(CONFIG_KEYS.Status.Details.Text.Codex)!);
+                if (stateEnabled) state = await replaceAllText(config.get(CONFIG_KEYS.Status.State.Text.Codex)!);
+            }
+            largeImageKey = await replaceAllText(config.get(CONFIG_KEYS.Status.Image.Large.Codex.Key)!);
+            largeImageText = await replaceAllText(config.get(CONFIG_KEYS.Status.Image.Large.Codex.Text)!);
+            smallImageKey = await replaceAllText(config.get(CONFIG_KEYS.Status.Image.Small.Codex.Key)!);
+            smallImageText = await replaceAllText(config.get(CONFIG_KEYS.Status.Image.Small.Codex.Text)!);
+            break;
+        }
         case CURRENT_STATUS.IDLE: {
             if (!isWorkspaceExcluded) {
                 if (detailsIdleEnabled && detailsEnabled)
@@ -356,7 +383,8 @@ export const getPresenceButtons = async (
         ? "Idle"
         : isGitExcluded
           ? undefined
-          : status == CURRENT_STATUS.EDITING ||
+          : status == CURRENT_STATUS.CODEX ||
+              status == CURRENT_STATUS.EDITING ||
               status == CURRENT_STATUS.VIEWING ||
               status == CURRENT_STATUS.NOT_IN_FILE ||
               status == CURRENT_STATUS.DEBUGGING

@@ -41,6 +41,7 @@ export interface ExtensionConfigurationType {
     "status.details.text.viewing": string;
     "status.details.text.editing": string;
     "status.details.text.debugging": string;
+    "status.details.text.codex": string;
     "status.details.text.notInFile": string;
     "status.details.text.noWorkSpaceText": string;
     "status.state.enabled": boolean;
@@ -50,6 +51,7 @@ export interface ExtensionConfigurationType {
     "status.state.text.viewing": string;
     "status.state.text.editing": string;
     "status.state.text.debugging": string;
+    "status.state.text.codex": string;
     "status.state.text.notInFile": string;
     "status.state.text.noWorkspaceFound": string;
     "status.buttons": Buttons;
@@ -92,6 +94,8 @@ export interface ExtensionConfigurationType {
     "status.buttons.button2.git.idle.label": string;
     "status.buttons.button2.git.idle.url": string;
     "status.image.large.idle.key": string;
+    "status.image.large.codex.key": string;
+    "status.image.large.codex.text": string;
     "status.image.large.idle.text": string;
     "status.image.large.viewing.key": string;
     "status.image.large.viewing.text": string;
@@ -102,6 +106,8 @@ export interface ExtensionConfigurationType {
     "status.image.large.notInFile.key": string;
     "status.image.large.notInFile.text": string;
     "status.image.small.idle.key": string;
+    "status.image.small.codex.key": string;
+    "status.image.small.codex.text": string;
     "status.image.small.idle.text": string;
     "status.image.small.viewing.key": string;
     "status.image.small.viewing.text": string;
@@ -121,6 +127,8 @@ export interface ExtensionConfigurationType {
     "status.idle.disconnectOnIdle": boolean;
     "status.idle.resetElapsedTime": boolean;
     "status.idle.timeout": number;
+    "status.codex.enabled": boolean;
+    "status.codex.showTerminalTitle": boolean;
     "status.showElapsedTime": boolean;
     "status.resetElapsedTimePerFile": boolean;
     "ignore.workspaces": Array<string>;

@@ -10,6 +10,7 @@ import {
     type Extension,
     type TextEditor,
     type WorkspaceFolder,
+    type Uri,
     extensions,
     window,
     workspace
@@ -42,6 +43,13 @@ export class Data implements Disposable {
     private gitApiListeners: Disposable[] = [];
 
     public editor: TextEditor | undefined;
+    private terminalCwd: Uri | undefined;
+
+    public setTerminalCwd(cwd: Uri | undefined) {
+        if (this.terminalCwd?.toString() === cwd?.toString()) return;
+        this.terminalCwd = cwd;
+        this.updateGitInfo();
+    }
 
     public constructor() {
         this.editor = window.activeTextEditor;
@@ -133,9 +141,10 @@ export class Data implements Disposable {
     }
 
     public get workspaceFolder(): WorkspaceFolder | undefined {
-        const uri = this.editor?.document.uri;
+        const uri = this.terminalCwd ?? this.editor?.document.uri;
         let v: WorkspaceFolder | undefined;
         if (uri) v = workspace.getWorkspaceFolder(uri);
+        else v = workspace.workspaceFolders?.[0];
 
         this.debug(`workspaceFolder(): ${uri ? "Found URI" : "No URI"}`, v);
         return v;
@@ -233,6 +242,8 @@ export class Data implements Disposable {
 
     private repo(api: GitApi): Repository | undefined {
         const repos = api.repositories;
+
+        if (this.terminalCwd) return extractRepo(repos, this.terminalCwd.fsPath);
 
         if (window.activeTextEditor) {
             const _file = parse(window.activeTextEditor.document.uri.fsPath);

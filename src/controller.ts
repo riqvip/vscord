@@ -10,6 +10,7 @@ import { logError, logInfo } from "./logger";
 import { CONFIG_KEYS } from "./constants";
 import { getConfig } from "./config";
 import { dataClass } from "./data";
+import { TerminalActivity } from "./terminal";
 
 export class RPCController {
     listeners: Disposable[] = [];
@@ -23,11 +24,12 @@ export class RPCController {
 
     private idleTimeout: NodeJS.Timeout | undefined;
     private iconTimeout: NodeJS.Timeout | undefined;
-    private activityThrottle = throttle(
-        (isViewing?: boolean, isIdling?: boolean) => this.sendActivity(isViewing, isIdling),
-        2000,
-        true
-    );
+    private automaticIdling = false;
+    private activityRevision = 0;
+    private activityThrottle = throttle((isViewing?: boolean) => this.sendActivity(isViewing), 2000, true);
+    readonly terminals = new TerminalActivity(() => {
+        if (this.enabled && this.client.isConnected) void this.activityThrottle.callable();
+    });
 
     constructor(clientId: string, debug = false) {
         const config = getConfig();
@@ -70,18 +72,9 @@ export class RPCController {
     }
 
     private listen() {
-        const config = getConfig();
-
         const fileSwitch = window.onDidChangeActiveTextEditor((e) => {
             logInfo("onDidChangeActiveTextEditor()");
-            if (e) {
-                this.activityThrottle.reset();
-                void this.activityThrottle.callable();
-                return;
-            }
-            setTimeout(() => {
-                this.checkIdle(window.state);
-            }, 500);
+            void this.activityThrottle.callable(!!e);
         });
         const fileEdit = workspace.onDidChangeTextDocument((e) => {
             if (e.document !== dataClass.editor?.document) return;
@@ -101,19 +94,27 @@ export class RPCController {
         const debugEnd = debug.onDidTerminateDebugSession(() => {
             void this.activityThrottle.callable();
         });
-        const diagnosticsChange = languages.onDidChangeDiagnostics(() => onDiagnosticsChange());
+        const diagnosticsChange = languages.onDidChangeDiagnostics(() => {
+            if (getConfig().get(CONFIG_KEYS.Status.Problems.Enabled)) onDiagnosticsChange();
+        });
         const changeWindowState = window.onDidChangeWindowState((e: WindowState) => {
             logInfo("onDidChangeWindowState()");
             this.checkIdle(e);
         });
 
-        // fire checkIdle at least once after loading
+        this.terminals.start();
+        this.terminals.refresh();
+        // A focused window must never start an automatic idle timer.
         this.checkIdle(window.state);
-
-        if (config.get(CONFIG_KEYS.Status.Problems.Enabled)) this.listeners.push(diagnosticsChange);
-        if (config.get(CONFIG_KEYS.Status.Idle.Check)) this.listeners.push(changeWindowState);
-
-        this.listeners.push(fileSwitch, fileEdit, fileSelectionChanged, debugStart, debugEnd);
+        this.listeners.push(
+            fileSwitch,
+            fileEdit,
+            fileSelectionChanged,
+            debugStart,
+            debugEnd,
+            diagnosticsChange,
+            changeWindowState
+        );
     }
 
     private checkCanSend(isIdling: boolean): boolean {
@@ -134,33 +135,40 @@ export class RPCController {
 
     private checkIdle(windowState: WindowState) {
         if (!this.enabled) return;
-
         const config = getConfig();
-
-        if (config.get(CONFIG_KEYS.Status.Idle.Timeout) !== 0) {
-            if (windowState.focused && this.idleTimeout) {
-                clearTimeout(this.idleTimeout);
+        const timeout = config.get(CONFIG_KEYS.Status.Idle.Timeout) ?? 300;
+        if (windowState.focused || !config.get(CONFIG_KEYS.Status.Idle.Check) || timeout <= 0) {
+            this.clearIdleTimer();
+            this.automaticIdling = false;
+            void this.activityThrottle.callable();
+        } else if (!this.idleTimeout && !this.automaticIdling) {
+            this.idleTimeout = setTimeout(() => {
+                this.idleTimeout = undefined;
+                const current = getConfig();
+                if (
+                    !this.enabled ||
+                    window.state.focused ||
+                    !current.get(CONFIG_KEYS.Status.Idle.Check) ||
+                    (current.get(CONFIG_KEYS.Status.Idle.Timeout) ?? 300) <= 0
+                )
+                    return;
+                this.automaticIdling = true;
                 void this.activityThrottle.callable();
-            } else if (config.get(CONFIG_KEYS.Status.Idle.Check)) {
-                this.idleTimeout = setTimeout(
-                    async () => {
-                        if (!config.get(CONFIG_KEYS.Status.Idle.Check)) return;
-
-                        if (
-                            config.get(CONFIG_KEYS.Status.Idle.DisconnectOnIdle) &&
-                            config.get(CONFIG_KEYS.Status.Idle.ResetElapsedTime)
-                        ) {
-                            delete this.state.startTimestamp;
-                        }
-
-                        if (!this.enabled) return;
-
-                        void this.activityThrottle.callable(false, true);
-                    },
-                    config.get(CONFIG_KEYS.Status.Idle.Timeout)! * 1000
-                );
-            }
+            }, timeout * 1000);
         }
+    }
+
+    private clearIdleTimer() {
+        if (this.idleTimeout) clearTimeout(this.idleTimeout);
+        this.idleTimeout = undefined;
+    }
+
+    refreshConfiguration() {
+        this.manualIdleMode = getConfig().get(CONFIG_KEYS.Status.Idle.Check) === false;
+        this.clearIdleTimer();
+        this.terminals.refresh();
+        this.checkIdle(window.state);
+        if (this.enabled) void this.activityThrottle.callable();
     }
 
     async login() {
@@ -177,14 +185,20 @@ export class RPCController {
         else if (!this.client.isConnected) await this.client.login();
     }
 
-    async sendActivity(isViewing = false, isIdling = false): Promise<SetActivityResponse | undefined> {
+    async sendActivity(isViewing = false): Promise<SetActivityResponse | undefined> {
         if (!this.enabled) return;
-        if (this.manualIdleMode) isIdling = this.manualIdling;
+        // Every update uses the current idle state, including background file and terminal events.
+        const isIdling = this.manualIdling || (!this.manualIdleMode && this.automaticIdling);
         this.checkCanSend(isIdling);
-        this.state = await activity(this.state, isViewing, isIdling);
-        this.state.instance = true;
+        const codex = this.terminals.presence;
+        dataClass.setTerminalCwd(codex?.cwd);
+        const revision = ++this.activityRevision;
+        const state = await activity({ ...this.state }, isViewing, isIdling, codex);
+        if (!this.enabled || revision !== this.activityRevision) return;
+        this.state = state;
         if (!this.state || Object.keys(this.state).length === 0 || !this.canSendActivity)
             return void this.client.user?.clearActivity(process.pid);
+        this.state.instance = true;
         const filteredButton: GatewayActivityButton[] = [];
         this.state.buttons = (this.state.buttons ?? []).filter((button) => {
             const isValid = validURL(button.url);
@@ -224,9 +238,9 @@ export class RPCController {
         editor.setStatusBarItem(StatusBarMode.Succeeded);
 
         logInfo("[004] Debug:", "Enabled - isConnected", this.client.isConnected, "isReady", this.client.clientId);
-        await this.activityThrottle.callable();
         this.cleanUp();
         this.listen();
+        await this.activityThrottle.callable();
 
         if (this.iconTimeout) clearTimeout(this.iconTimeout);
     }
@@ -240,6 +254,12 @@ export class RPCController {
     }
 
     cleanUp() {
+        this.activityRevision++;
+        this.clearIdleTimer();
+        this.automaticIdling = false;
+        this.activityThrottle.reset();
+        this.terminals.dispose();
+        dataClass.setTerminalCwd(undefined);
         for (const listener of this.listeners) listener.dispose();
         this.listeners = [];
     }

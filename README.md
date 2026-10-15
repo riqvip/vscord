@@ -40,6 +40,7 @@ This extension does not work with snapstore / flatpak version of VSCode, please 
 - Detect when you are Debugging!
 - Detect when you are using the [Insiders build](https://code.visualstudio.com/insiders/)!
 - Detect when you are Idling!
+- Detect interactive Codex sessions in panel and editor terminals!
 
 ## 👀 Preview
 
@@ -63,44 +64,84 @@ Use the **[Extension Marketplace](https://code.visualstudio.com/docs/editor/exte
 
 ## ⚙️ Configuration
 
+### Terminal activity and Codex
+
+VSCord stays active while the VS Code window is focused, including when using a
+terminal in the bottom panel or in an editor tab. After leaving the window, the
+normal idle timeout applies (300 seconds by default). Background terminal and
+file events do not clear idle. Set `vscord.status.idle.timeout` to `0` to disable
+automatic idle, or `vscord.status.idle.check` to `false` for manual idle only.
+The **Start Idle** and **Stop Idle** commands provide a manual override.
+
+With `vscord.status.codex.enabled` enabled (the default), an interactive `codex`,
+`codex resume`, or `codex fork` command shows an OpenAI logo centered on a light
+gray tile while that terminal is focused. When you focus a file, its regular file
+icon returns; focusing the Codex terminal brings the Codex tile back. Both panel
+and editor terminals work.
+
+The details use `{codex_directory}` to show the focused session's terminal
+directory, shortened to `~` when it is under your home folder. Codex can change
+its own working directory with `/cd`; VSCord refreshes the value when VS Code's
+shell integration reports a directory change.
+
+Automatic detection requires VS Code 1.93 or newer and terminal shell integration.
+Sessions launched before VSCord activates can also be recognized when Codex has
+set its default terminal title.
+
+To share a session title, enable `vscord.status.codex.showTerminalTitle` and use
+Codex's `/title` picker to include its thread/session name. VSCord uses the terminal
+name exposed by VS Code, so a custom terminal name or shell configuration may
+prevent the Codex title from appearing. Titles refresh every two seconds and are
+hidden by privacy mode and workspace exclusions. This option is disabled by default;
+VSCord does not read Codex conversations or terminal output.
+
+Customize the card with `vscord.status.details.text.codex`,
+`vscord.status.state.text.codex`, and `vscord.status.image.large.codex.*` /
+`vscord.status.image.small.codex.*`. Custom presence images must be publicly
+reachable by Discord; local files cannot be used as presence images.
+The default Codex tile uses an adapted OpenAI mark from [Lobe Icons](https://github.com/lobehub/lobe-icons),
+under the MIT license documented in [`assets/codex.LICENSE.txt`](assets/codex.LICENSE.txt).
+
 The following variables will be replaced with the respective value in custom strings.<br>
 
-| Variable                              | Value                                              |
-| ------------------------------------- | -------------------------------------------------- |
-| `{app_name}`                          | current editor name                                |
-| `{app_id}`                            | editor name that's suitable for using inside url   |
-| `{file_name}`                         | name of the file                                   |
-| `{file_extension}`                    | extension of the file                              |
-| `{file_size}`                         | size of the file                                   |
-| `{folder_and_file}`                   | folder and file name                               |
-| `{relative_file_path}`                | filepath relative to the workspace folder          |
-| `{directory_name}`                    | directory name                                     |
-| `{full_directory_name}`               | full directory name                                |
-| `{workspace}`                         | name of the workspace                              |
-| `{workspace_folder}`                  | name of the workspace folder                       |
-| `{workspace_and_folder}`              | name of the workspace and folder                   |
-| `{lang}` \| `{Lang}` \| `{LANG}`      | format of the lang string (css, Css, CSS)          |
-| `{a_lang}` \| `{a_Lang}`\| `{a_LANG}` | same as the above, but prefixes with "a" or "an"   |
-| `{problems}`                          | problems text defined in settings                  |
-| `{problems_pluralize}`                | the word `problem`, pluralized by count            |
-| `{problems_count}`                    | number of problems                                 |
-| `{problems_count_errors}`             | number of problems that are errors                 |
-| `{problems_count_warnings}`           | number of problems that are warnings               |
-| `{problems_count_infos}`              | number of problems that are infos                  |
-| `{problems_count_hints}`              | number of problems that are hints                  |
-| `{line_count}`                        | number of lines                                    |
-| `{current_line}`                      | current line                                       |
-| `{current_column}`                    | current column                                     |
-| `{git_owner}`                         | current git repository owner                       |
-| `{git_repo}`                          | repository name for current repository             |
-| `{git_branch}`                        | current git branch                                 |
-| `{git_protocol}`                      | git protocol (https, http, ssh)                    |
-| `{git_resource}`                      | git resource link (etc: github.com) (exclude port) |
-| `{git_host}`                          | git host link (etc: github.com) (include port)     |
-| `{git_port}`                          | pot for the git link                               |
-| `{git_href}`                          | href to the git repository                         |
-| `{git_url}`                           | url link to the git repository                     |
-| `{empty}`                             | an empty space                                     |
+| Variable                              | Value                                                  |
+| ------------------------------------- | ------------------------------------------------------ |
+| `{app_name}`                          | current editor name                                    |
+| `{app_id}`                            | editor name that's suitable for using inside url       |
+| `{file_name}`                         | name of the file                                       |
+| `{file_extension}`                    | extension of the file                                  |
+| `{file_size}`                         | size of the file                                       |
+| `{folder_and_file}`                   | folder and file name                                   |
+| `{relative_file_path}`                | filepath relative to the workspace folder              |
+| `{directory_name}`                    | directory name                                         |
+| `{full_directory_name}`               | full directory name                                    |
+| `{workspace}`                         | name of the workspace                                  |
+| `{workspace_folder}`                  | name of the workspace folder                           |
+| `{workspace_and_folder}`              | name of the workspace and folder                       |
+| `{lang}` \| `{Lang}` \| `{LANG}`      | format of the lang string (css, Css, CSS)              |
+| `{a_lang}` \| `{a_Lang}`\| `{a_LANG}` | same as the above, but prefixes with "a" or "an"       |
+| `{problems}`                          | problems text defined in settings                      |
+| `{problems_pluralize}`                | the word `problem`, pluralized by count                |
+| `{problems_count}`                    | number of problems                                     |
+| `{problems_count_errors}`             | number of problems that are errors                     |
+| `{problems_count_warnings}`           | number of problems that are warnings                   |
+| `{problems_count_infos}`              | number of problems that are infos                      |
+| `{problems_count_hints}`              | number of problems that are hints                      |
+| `{line_count}`                        | number of lines                                        |
+| `{current_line}`                      | current line                                           |
+| `{current_column}`                    | current column                                         |
+| `{git_owner}`                         | current git repository owner                           |
+| `{git_repo}`                          | repository name for current repository                 |
+| `{git_branch}`                        | current git branch                                     |
+| `{git_protocol}`                      | git protocol (https, http, ssh)                        |
+| `{git_resource}`                      | git resource link (etc: github.com) (exclude port)     |
+| `{git_host}`                          | git host link (etc: github.com) (include port)         |
+| `{git_port}`                          | pot for the git link                                   |
+| `{git_href}`                          | href to the git repository                             |
+| `{git_url}`                           | url link to the git repository                         |
+| `{empty}`                             | an empty space                                         |
+| `{codex_title}`                       | selected Codex terminal title, when sharing is enabled |
+| `{codex_directory}`                   | focused Codex terminal working directory               |
 
 ## 👨‍💻 Contributing
 
