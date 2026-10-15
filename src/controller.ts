@@ -137,6 +137,13 @@ export class RPCController {
         if (!this.enabled) return;
         const config = getConfig();
         const timeout = config.get(CONFIG_KEYS.Status.Idle.Timeout) ?? 300;
+        if (this.debug)
+            logInfo("[idle] focus state", {
+                focused: windowState.focused,
+                automaticIdling: this.automaticIdling,
+                manualIdling: this.manualIdling,
+                timeoutSeconds: timeout
+            });
         if (windowState.focused || !config.get(CONFIG_KEYS.Status.Idle.Check) || timeout <= 0) {
             this.clearIdleTimer();
             this.automaticIdling = false;
@@ -191,6 +198,13 @@ export class RPCController {
         const isIdling = this.manualIdling || (!this.manualIdleMode && this.automaticIdling);
         this.checkCanSend(isIdling);
         const codex = this.terminals.presence;
+        if (this.debug)
+            logInfo("[presence] sending", {
+                windowFocused: window.state.focused,
+                activeTerminal: !!window.activeTerminal,
+                codexDetected: !!codex,
+                isIdling
+            });
         dataClass.setTerminalCwd(codex?.cwd);
         const revision = ++this.activityRevision;
         const state = await activity({ ...this.state }, isViewing, isIdling, codex);

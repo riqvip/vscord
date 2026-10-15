@@ -302,7 +302,8 @@ test("focused terminals stay active; repeated blur and background changes do not
     window.onDidChangeActiveTerminal.fire(window.activeTerminal);
     t.mock.timers.tick(10000);
     await settle();
-    assert.match(controller.state.smallImageKey, /openai\.png$/);
+    assert.match(controller.state.largeImageKey, /\/assets\/codex\.png$/);
+    assert.match(controller.state.smallImageKey, /vscode\.png$/);
     dataClass.editor = textEditor;
     window.activeTerminal = undefined;
     window.onDidChangeActiveTerminal.fire(undefined);
@@ -331,7 +332,8 @@ test("focused terminals stay active; repeated blur and background changes do not
     window.onDidChangeActiveTerminal.fire(backgroundCodex);
     t.mock.timers.tick(2000);
     await settle();
-    assert.match(controller.state.smallImageKey, /openai\.png$/);
+    assert.match(controller.state.largeImageKey, /\/assets\/codex\.png$/);
+    assert.match(controller.state.smallImageKey, /vscode\.png$/);
     await controller.disable();
     assert.equal(
         allEvents.reduce((sum, value) => sum + value.size(), 0),

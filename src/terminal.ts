@@ -3,6 +3,7 @@ import { sep } from "node:path";
 import { CONFIG_KEYS } from "./constants";
 import { getConfig } from "./config";
 import { isCodexCommand } from "./helpers/isCodexCommand";
+import { logInfo } from "./logger";
 
 export interface CodexPresence {
     cwd?: Uri;
@@ -46,7 +47,13 @@ export class TerminalActivity implements Disposable {
         if (this.listeners.length) return;
         this.listeners.push(
             window.onDidStartTerminalShellExecution(({ terminal, execution }) => {
-                if (isCodexCommand(execution.commandLine.value)) {
+                const isCodex = isCodexCommand(execution.commandLine.value);
+                if (getConfig().get(CONFIG_KEYS.Behaviour.Debug))
+                    logInfo("[terminal] shell execution started", {
+                        codexCommand: isCodex,
+                        isActiveTerminal: terminal === window.activeTerminal
+                    });
+                if (isCodex) {
                     this.ended.delete(terminal);
                     this.sessions.set(terminal, {
                         execution,
@@ -72,6 +79,11 @@ export class TerminalActivity implements Disposable {
                 this.refresh();
             }),
             window.onDidChangeActiveTerminal((terminal) => {
+                if (getConfig().get(CONFIG_KEYS.Behaviour.Debug))
+                    logInfo("[terminal] active terminal changed", {
+                        terminalSelected: !!terminal,
+                        titleContainsCodex: !!terminal && /\bcodex\b/i.test(terminal.name)
+                    });
                 // Recover sessions that were already open when VSCord activated.
                 // Codex's default terminal title includes its project name.
                 if (
@@ -126,6 +138,12 @@ export class TerminalActivity implements Disposable {
         );
         if (snapshot !== this.lastSnapshot) {
             this.lastSnapshot = snapshot;
+            if (getConfig().get(CONFIG_KEYS.Behaviour.Debug))
+                logInfo("[terminal] presence snapshot", {
+                    activeTerminal: !!terminal,
+                    codexDetected: !!presence,
+                    windowFocused: window.state.focused
+                });
             this.onChange();
         }
         // VS Code exposes terminal names but has no stable terminal-name-change event.
